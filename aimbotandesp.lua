@@ -1,13 +1,13 @@
 -- Configurações
 local teamCheck = false
-local fov = 90
-local smoothing = 0.1
+local fov = 120
+local smoothing = 0.2  -- Aumentado para maior rapidez
 local predictionFactor = 0.08
 local highlightEnabled = false
-local lockPart = "Head"
+local lockPart = "Head"  -- Mudado para a cabeça
 local Toggle = false
 local ToggleKey = Enum.KeyCode.E
-local updateInterval = 30
+local updateInterval = 30  -- Intervalo de atualização em segundos
 
 -- Serviços do Roblox
 local RunService = game:GetService("RunService")
@@ -38,64 +38,34 @@ local toggleState = false
 local debounce = false
 local lastUpdate = 0
 
--- Função para adicionar ESP (caixas ao redor dos jogadores)
+-- Função para adicionar ESP (nome do jogador)
 local function createESP(player)
-    local character = player.Character
-    if character then
-        -- Cria a BillboardGui para o nome do jogador
-        local billboard = Instance.new("BillboardGui", character)
-        billboard.Name = "PlayerNameESP"
-        billboard.AlwaysOnTop = true
-        billboard.Size = UDim2.new(0, 100, 0, 25) -- Tamanho menor
+    if player and player.Character and player.Character:FindFirstChild("Head") then
+        local billboard = Instance.new("BillboardGui")
+        local textLabel = Instance.new("TextLabel")
+
+        billboard.Name = "ESP"
+        billboard.Adornee = player.Character.Head
+        billboard.Size = UDim2.new(1, 0, 1, 0)
         billboard.StudsOffset = Vector3.new(0, 3, 0)
+        billboard.AlwaysOnTop = true
 
-        -- Cria o TextLabel para o nome do jogador
-        local nameLabel = Instance.new("TextLabel", billboard)
-        nameLabel.Text = player.Name
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.TextColor3 = Color3.new(1, 1, 1) -- Cor branca
-        nameLabel.Size = UDim2.new(1, 0, 1, 0)
-        nameLabel.Font = Enum.Font.SourceSans
-        nameLabel.TextScaled = true
-        nameLabel.TextSize = 14 -- Tamanho do texto menor
+        textLabel.Parent = billboard
+        textLabel.Size = UDim2.new(0, 100, 0, 50)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = player.Name
+        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textLabel.TextSize = 14  -- Tamanho do texto ajustado para ser legível e agradável
 
-        -- Cria a caixa 3D ao redor do jogador
-        local Box = Instance.new("BoxHandleAdornment", character)
-        Box.Name = "BoxESP"
-        Box.Size = character:GetExtentsSize()
-        Box.Adornee = character
-        Box.AlwaysOnTop = true
-        Box.ZIndex = 1
-        Box.Transparency = 0.5
-        Box.Color3 = Color3.fromRGB(255, 0, 0)
+        billboard.Parent = player.Character
     end
 end
 
 -- Função para remover ESP
 local function removeESP(player)
-    if player.Character then
-        local character = player.Character
-        if character:FindFirstChild("PlayerNameESP") then
-            character:FindFirstChild("PlayerNameESP"):Destroy()
-        end
-        if character:FindFirstChild("BoxESP") then
-            character:FindFirstChild("BoxESP"):Destroy()
-        end
+    if player.Character and player.Character:FindFirstChild("ESP") then
+        player.Character:FindFirstChild("ESP"):Destroy()
     end
-end
-
--- Função para verificar se o alvo está visível
-local function isTargetVisible(target)
-    local character = target.Character
-    if character and character:FindFirstChild(lockPart) then
-        local origin = workspace.CurrentCamera.CFrame.Position
-        local direction = (character[lockPart].Position - origin).unit
-        local ray = Ray.new(origin, direction * 5000)
-        local part = workspace:FindPartOnRayWithIgnoreList(ray, {workspace.CurrentCamera, Players.LocalPlayer.Character}, false, true)
-        
-        return part and part:IsDescendantOf(character)
-    end
-    return false
 end
 
 -- Função para encontrar o jogador mais próximo dentro do FOV e visível
@@ -110,12 +80,17 @@ local function getClosest(cframe)
             local screenPoint, onScreen = workspace.CurrentCamera:WorldToViewportPoint(v.Character[lockPart].Position)
             local distanceFromCenter = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
 
-            if onScreen and distanceFromCenter <= fov and isTargetVisible(v) then
+            if onScreen and distanceFromCenter <= fov then
                 local magBuf = (v.Character[lockPart].Position - ray:ClosestPoint(v.Character[lockPart].Position)).Magnitude
 
-                if magBuf < mag then
-                    mag = magBuf
-                    target = v
+                -- Verifica se o alvo está visível
+                local ray = Ray.new(workspace.CurrentCamera.CFrame.Position, (v.Character[lockPart].Position - workspace.CurrentCamera.CFrame.Position).unit * 500)
+                local part = workspace:FindPartOnRayWithIgnoreList(ray, {Players.LocalPlayer.Character, v.Character})
+                if part == nil then
+                    if magBuf < mag then
+                        mag = magBuf
+                        target = v
+                    end
                 end
             end
         end
@@ -158,11 +133,18 @@ local function predictPosition(target)
     return nil
 end
 
--- Lida com a alternância do estado do aimbot
+-- Lida com a alternância do estado do aimbot e exibe notificação
 local function handleToggle()
     if debounce then return end
     debounce = true
     toggleState = not toggleState
+    
+    StarterGui:SetCore("SendNotification", {
+        Title = "Aimbot Status",
+        Text = toggleState and "Aimbot Ativado" or "Aimbot Desativado",
+        Duration = 3
+    })
+    
     wait(0.3)
     debounce = false
 end
